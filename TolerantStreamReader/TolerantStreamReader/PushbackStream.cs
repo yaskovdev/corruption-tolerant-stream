@@ -20,9 +20,22 @@ public class PushbackStream(Stream inner) : Stream
 
     public override int Read(byte[] buffer, int offset, int count)
     {
-        var readFromPushbackCount = Math.Min(count, _pushback.Length - _pushback.Position);
-        var totalRead = _pushback.Read(buffer, offset, (int)readFromPushbackCount);
-        return totalRead > 0 ? totalRead : inner.Read(buffer, offset, count);
+        var totalRead = 0;
+        var pushbackAvailable = (int)(_pushback.Length - _pushback.Position);
+        if (pushbackAvailable > 0)
+        {
+            var toReadFromPushback = Math.Min(count, pushbackAvailable);
+            var readFromPushback = _pushback.Read(buffer, offset, toReadFromPushback);
+            totalRead += readFromPushback;
+            offset += readFromPushback;
+            count -= readFromPushback;
+        }
+        if (count > 0)
+        {
+            var readFromInner = inner.Read(buffer, offset, count);
+            totalRead += readFromInner;
+        }
+        return totalRead;
     }
 
     public void Unread(byte[] buffer)
