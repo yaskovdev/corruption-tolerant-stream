@@ -3,38 +3,40 @@ namespace TolerantStreamReader;
 using System.IO.Hashing;
 using LanguageExt;
 
-public class StreamReader(Stream stream, TimeSpan delayBetweenReadRetries) : IStreamReader
+public class StreamReader(Stream stream, byte[] magic, TimeSpan delayBetweenReadRetries) : IStreamReader
 {
-    private static readonly byte[] Magic = [0xDE, 0xAD, 0xBE, 0xEF];
     private readonly PushbackStream _stream = new(stream);
 
-    public async Task<byte[]> ReadNext(CancellationToken cancellationToken)
-    {
-        while (true)
+    public Aff<byte[]> ReadNext(CancellationToken cancellationToken) =>
+        Prelude.Aff(async () =>
         {
-            cancellationToken.ThrowIfCancellationRequested();
-            await ReadMagicInternal(Magic, cancellationToken);
-            using var sizeBuffer = await ReadFromStreamExact(sizeof(int), cancellationToken);
-            var size = BitConverter.ToInt32(sizeBuffer.Memory.Span);
-            using var payload = await ReadFromStreamExact(size, cancellationToken);
-            using var expectedHashBuffer = await ReadFromStreamExact(sizeof(uint), cancellationToken);
-            var expectedHash = BitConverter.ToUInt32(expectedHashBuffer.Memory.Span);
-            var actualHash = Crc32.HashToUInt32(payload.Memory.Span);
-            if (expectedHash == actualHash)
+            while (true)
             {
-                return payload.Memory.ToArray();
+                cancellationToken.ThrowIfCancellationRequested();
+                await ReadMagicInternal(cancellationToken);
+                using var sizeBuffer = await ReadFromStreamExact(sizeof(int), cancellationToken);
+                // TODO: validate size against some maximum threshold
+                var size = BitConverter.ToInt32(sizeBuffer.Memory.Span);
+                using var payload = await ReadFromStreamExact(size, cancellationToken);
+                using var expectedHashBuffer = await ReadFromStreamExact(sizeof(uint), cancellationToken);
+                var expectedHash = BitConverter.ToUInt32(expectedHashBuffer.Memory.Span);
+                var actualHash = Crc32.HashToUInt32(payload.Memory.Span);
+                if (expectedHash == actualHash)
+                {
+                    return payload.Memory.ToArray();
+                }
+
+                _stream.Unread(expectedHashBuffer.Memory.ToArray());
+                _stream.Unread(payload.Memory.ToArray());
+                _stream.Unread(sizeBuffer.Memory.ToArray());
+                await ReadFromStreamExact(1, cancellationToken);
             }
-            _stream.Unread(expectedHashBuffer.Memory.ToArray());
-            _stream.Unread(payload.Memory.ToArray());
-            _stream.Unread(sizeBuffer.Memory.ToArray());
-            await ReadFromStreamExact(1, cancellationToken);
-        }
-    }
+        });
 
     /// <summary>
     /// Reads the specified magic byte sequence from the stream, advancing until the full sequence is matched.
     /// </summary>
-    private async Task<Unit> ReadMagicInternal(byte[] magic, CancellationToken cancellationToken)
+    private async Task ReadMagicInternal(CancellationToken cancellationToken)
     {
         var matchedMagicBytes = 0;
 
@@ -48,10 +50,9 @@ public class StreamReader(Stream stream, TimeSpan delayBetweenReadRetries) : ISt
             if (b == magic[matchedMagicBytes])
             {
                 matchedMagicBytes++;
-
                 if (matchedMagicBytes == magic.Length)
                 {
-                    return Prelude.unit;
+                    return;
                 }
             }
             else

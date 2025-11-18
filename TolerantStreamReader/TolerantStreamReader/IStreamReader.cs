@@ -1,6 +1,8 @@
 namespace TolerantStreamReader;
 
+using LanguageExt;
+
 public interface IStreamReader
 {
-    Task<byte[]> ReadNext(CancellationToken cancellationToken);
+    Aff<byte[]> ReadNext(CancellationToken cancellationToken);
 }

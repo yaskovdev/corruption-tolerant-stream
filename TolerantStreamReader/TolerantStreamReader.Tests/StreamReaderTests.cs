@@ -1,14 +1,16 @@
 namespace TolerantStreamReader.Tests;
 
 using System.Collections.Immutable;
+using System.IO.Hashing;
+using LanguageExt;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using Shouldly;
-using System.IO.Hashing;
 
 [TestClass]
 public class StreamReaderTests
 {
-    private static readonly byte[] Magic = [0xDE, 0xAD, 0xBE, 0xEF];
+    // The probability of this magic occurring randomly in a byte stream is 1 / 256^8.
+    private static readonly byte[] Magic = [0xDE, 0xAD, 0xBE, 0xEF, 0xCA, 0xFE, 0xBA, 0xBE];
 
     [TestMethod]
     public async Task ShouldReadPayloads_WhenNotCorrupted()
@@ -16,9 +18,13 @@ public class StreamReaderTests
         IImmutableList<byte[]> frames = ImmutableList.Create(await CreateFrame([1, 1, 1]), await CreateFrame([2, 2]));
         var buffer = await CreateBuffer(frames);
         using var stream = new MemoryStream(buffer);
-        var instanceUnderTest = new StreamReader(stream, TimeSpan.FromSeconds(10));
-        (await instanceUnderTest.ReadNext(CancellationToken.None)).ShouldBe([1, 1, 1]);
-        (await instanceUnderTest.ReadNext(CancellationToken.None)).ShouldBe([2, 2]);
+        var instanceUnderTest = new StreamReader(stream, Magic, TimeSpan.FromSeconds(10));
+        (await instanceUnderTest.ReadNext(CancellationToken.None).Run())
+            .ToOption()
+            .ShouldBe(Prelude.Optional<byte[]>([1, 1, 1]));
+        (await instanceUnderTest.ReadNext(CancellationToken.None).Run())
+            .ToOption()
+            .ShouldBe(Prelude.Optional<byte[]>([2, 2]));
     }
 
     [TestMethod]
@@ -31,8 +37,10 @@ public class StreamReaderTests
         buffer[0] = 0x00;
 
         using var stream = new MemoryStream(buffer);
-        var instanceUnderTest = new StreamReader(stream, TimeSpan.FromSeconds(10));
-        (await instanceUnderTest.ReadNext(CancellationToken.None)).ShouldBe([2, 2]);
+        var instanceUnderTest = new StreamReader(stream, Magic, TimeSpan.FromSeconds(10));
+        (await instanceUnderTest.ReadNext(CancellationToken.None).Run())
+            .ToOption()
+            .ShouldBe(Prelude.Optional<byte[]>([2, 2]));
     }
 
     [TestMethod]
@@ -48,9 +56,13 @@ public class StreamReaderTests
         buffer[indexOfFirstByteOfSecondPayload + 1] = 0xFF;
 
         using var stream = new MemoryStream(buffer);
-        var instanceUnderTest = new StreamReader(stream, TimeSpan.FromSeconds(10));
-        (await instanceUnderTest.ReadNext(CancellationToken.None)).ShouldBe([1, 1, 1]);
-        (await instanceUnderTest.ReadNext(CancellationToken.None)).ShouldBe([3]);
+        var instanceUnderTest = new StreamReader(stream, Magic, TimeSpan.FromSeconds(10));
+        (await instanceUnderTest.ReadNext(CancellationToken.None).Run())
+            .ToOption()
+            .ShouldBe(Prelude.Optional<byte[]>([1, 1, 1]));
+        (await instanceUnderTest.ReadNext(CancellationToken.None).Run())
+            .ToOption()
+            .ShouldBe(Prelude.Optional<byte[]>([3]));
     }
 
     private static async Task<byte[]> CreateFrame(byte[] payload)
@@ -72,6 +84,7 @@ public class StreamReaderTests
         {
             await stream.WriteAsync(frame);
         }
+
         return stream.ToArray();
     }
 }
