@@ -15,6 +15,8 @@ public class StreamReader(Stream stream, byte[] magic, TimeSpan delayBetweenRead
             while (true)
             {
                 cancellationToken.ThrowIfCancellationRequested();
+                // TODO: read magic.Length + sizeof(int) bytes here right away and check if it starts with the magic.
+                // If yes, proceed, if no, unread sizeof(int) bytes and start looking for the magic using the slower ReadMagicInternal method.
                 await ReadMagicInternal(cancellationToken);
                 using var sizeBuffer = await ReadFromStreamExact(sizeof(int), cancellationToken);
                 // TODO: validate size against some maximum threshold
