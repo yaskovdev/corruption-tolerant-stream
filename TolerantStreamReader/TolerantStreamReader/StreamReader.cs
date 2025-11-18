@@ -3,6 +3,8 @@ namespace TolerantStreamReader;
 using System.IO.Hashing;
 using LanguageExt;
 
+// TODO: add check that the magic is aperiodic (e.g. not [0xBE, 0xEF, 0xBE, 0xEF])
+// If it's violated, then you have to unread the magic bytes as well if the payload hashes don't match, then shift 1 byte forward, only then try searching for the next magic.
 public class StreamReader(Stream stream, byte[] magic, TimeSpan delayBetweenReadRetries) : IStreamReader
 {
     private readonly PushbackStream _stream = new(stream);
