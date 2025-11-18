@@ -5,6 +5,7 @@ using LanguageExt;
 
 // TODO: add check that the magic is aperiodic (e.g. not [0xBE, 0xEF, 0xBE, 0xEF])
 // If it's violated, then you have to unread the magic bytes as well if the payload hashes don't match, then shift 1 byte forward, only then try searching for the next magic.
+// Or, actually, it's not enough to be aperiodic. E.g., [1, 2, 1] is aperiodic, but if you shift it 2 bytes and compare the overlapped part, they'll still match.
 public class StreamReader(Stream stream, byte[] magic, TimeSpan delayBetweenReadRetries) : IStreamReader
 {
     private readonly PushbackStream _stream = new(stream);

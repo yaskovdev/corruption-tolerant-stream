@@ -10,7 +10,7 @@ public class PushbackStreamTests
     public async Task ShouldSupportUnread()
     {
         using var inner = new MemoryStream(Enumerable.Range(0, 6).Select(i => (byte)i).ToArray());
-        var instanceUnderTest = new PushbackStream(inner);
+        await using var instanceUnderTest = new PushbackStream(inner);
         await ReadAndAssertExpectedBytes(instanceUnderTest, 3, [0, 1, 2]);
         await ReadAndAssertExpectedBytes(instanceUnderTest, 1, [3]);
         instanceUnderTest.Unread([2, 3]);
@@ -25,7 +25,7 @@ public class PushbackStreamTests
     public async Task Should2()
     {
         using var inner = new MemoryStream(Enumerable.Range(0, 24).Select(i => (byte)i).ToArray());
-        var instanceUnderTest = new PushbackStream(inner);
+        await using var instanceUnderTest = new PushbackStream(inner);
         await ReadAndAssertExpectedBytes(instanceUnderTest, 12, [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11]);
         instanceUnderTest.Unread([8, 9, 10, 11]);
         await ReadAndAssertExpectedBytes(instanceUnderTest, 1, [8]);
