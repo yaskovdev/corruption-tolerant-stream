@@ -29,7 +29,6 @@ public class StreamReader(Stream stream, byte[] magic, TimeSpan delayBetweenRead
                 _stream.Unread(expectedHashBuffer.Memory.ToArray());
                 _stream.Unread(payload.Memory.ToArray());
                 _stream.Unread(sizeBuffer.Memory.ToArray());
-                await ReadFromStreamExact(1, cancellationToken);
             }
         });
 
