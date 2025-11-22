@@ -7,7 +7,6 @@ public class StreamReader : IStreamReader
 {
     private readonly PushbackStream _stream;
     private readonly byte[] _magic;
-    private readonly TimeSpan _delayBetweenReadRetries;
     private readonly Action<long> _onInvalidFrameHeader;
     private readonly Action<long> _onInvalidPayloadHash;
     private long _totalReadBytes;
@@ -17,10 +16,9 @@ public class StreamReader : IStreamReader
     private readonly Range _frameHeaderSizeHashRange;
     private readonly int _frameHeaderSize;
 
-    public StreamReader(Stream stream, byte[] magic, TimeSpan delayBetweenReadRetries, Action<long>? onInvalidFrameHeader = null, Action<long>? onInvalidPayloadHash = null)
+    public StreamReader(Stream stream, byte[]? magic, Action<long>? onInvalidFrameHeader = null, Action<long>? onInvalidPayloadHash = null)
     {
-        _magic = magic;
-        _delayBetweenReadRetries = delayBetweenReadRetries;
+        _magic = magic ?? Constants.Magic;
         _onInvalidFrameHeader = onInvalidFrameHeader ?? (_ => { });
         _onInvalidPayloadHash = onInvalidPayloadHash ?? (_ => { });
         _frameHeaderMagicRange = .._magic.Length;
@@ -30,20 +28,24 @@ public class StreamReader : IStreamReader
         _stream = new PushbackStream(stream);
     }
 
-    public Aff<byte[]> ReadNext(CancellationToken cancellationToken) =>
+    public Aff<ReadResult> ReadNext(CancellationToken cancellationToken) =>
         Prelude.Aff(async () =>
         {
             while (true)
             {
                 cancellationToken.ThrowIfCancellationRequested();
                 using var header = await ReadFromStreamExact(_stream, _frameHeaderSize, cancellationToken);
+                if (header is null) return new ReadResult([], ReadStatus.EndOfStream);
                 if (MagicIsValidAndSizeHashMatches(header))
                 {
                     var payloadSize = BitConverter.ToInt32(header.Memory.Span[_frameHeaderSizeRange]);
                     using var payloadWithHash = await ReadFromStreamExact(_stream, payloadSize + sizeof(uint), cancellationToken);
+
+                    if (payloadWithHash is null) return new ReadResult([], ReadStatus.EndOfStream);
+
                     if (PayloadHashMatches(payloadWithHash))
                     {
-                        return payloadWithHash.Memory.Span[..payloadSize].ToArray();
+                        return new ReadResult(payloadWithHash.Memory.Span[..payloadSize].ToArray(), ReadStatus.Success);
                     }
 
                     _onInvalidPayloadHash.Invoke(_totalReadBytes);
@@ -55,7 +57,8 @@ public class StreamReader : IStreamReader
                 }
 
                 UnreadStream(_stream, header.Memory.Span[1..]);
-                await ConsumeNextMagic(_stream, cancellationToken);
+                var consumed = await ConsumeNextMagic(_stream, cancellationToken);
+                if (!consumed) return new ReadResult([], ReadStatus.EndOfStream);
                 UnreadStream(_stream, _magic);
             }
         });
@@ -63,7 +66,7 @@ public class StreamReader : IStreamReader
     /// <summary>
     /// Reads the specified magic byte sequence from the stream, advancing until the full sequence is matched.
     /// </summary>
-    private async Task ConsumeNextMagic(Stream stream, CancellationToken cancellationToken)
+    private async Task<bool> ConsumeNextMagic(Stream stream, CancellationToken cancellationToken)
     {
         var matchedMagicBytes = 0;
 
@@ -72,14 +75,17 @@ public class StreamReader : IStreamReader
             cancellationToken.ThrowIfCancellationRequested();
             using var buffer = await ReadFromStreamExact(stream, 1, cancellationToken);
 
+            if (buffer is null) return false;
+
             var b = buffer.Memory.Span[0];
+
 
             if (b == _magic[matchedMagicBytes])
             {
                 matchedMagicBytes++;
                 if (matchedMagicBytes == _magic.Length)
                 {
-                    return;
+                    return true;
                 }
             }
             else
@@ -89,7 +95,7 @@ public class StreamReader : IStreamReader
         }
     }
 
-    private async Task<ReadBuffer> ReadFromStreamExact(Stream stream, int size, CancellationToken cancellationToken)
+    private async Task<ReadBuffer?> ReadFromStreamExact(Stream stream, int size, CancellationToken cancellationToken)
     {
         var buffer = new ReadBuffer(size);
         var totalRead = 0;
@@ -97,9 +103,11 @@ public class StreamReader : IStreamReader
         {
             var read = await stream.ReadAsync(buffer.Memory[totalRead..], cancellationToken);
             totalRead += read;
+            // Based on https://learn.microsoft.com/en-us/dotnet/api/system.io.stream.read?view=net-9.0#system-io-stream-read(system-span((system-byte))),
+            // given that the buffer is never empty, ReadAsync returns 0 only if "there is no more data in the stream and no more is expected".
             if (read == 0)
             {
-                await Task.Delay(_delayBetweenReadRetries, cancellationToken);
+                return null;
             }
         }
 

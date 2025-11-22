@@ -4,5 +4,5 @@ using LanguageExt;
 
 public interface IStreamReader
 {
-    Aff<byte[]> ReadNext(CancellationToken cancellationToken);
+    Aff<ReadResult> ReadNext(CancellationToken cancellationToken);
 }

@@ -1,5 +1,8 @@
 [*.cs]
 
+csharp_indent_anonymous_method_block = false
+blank_lines_after_block_statements = 0
+
 csharp_using_directive_placement = inside_namespace:silent
 
 csharp_style_var_when_type_is_apparent = true
