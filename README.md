@@ -53,4 +53,4 @@ Where `ghp_ge8Q9Vr7Kcv1N8DLSDmjTG06sqVjrt2MustL` is a GitHub personal access tok
 
 Check the package in [GitHub Packages](https://github.com/yaskovdev?tab=packages).
 
-Link it to the repository, if necessary.
+It may take some time for the package to appear in the GitHub repository.
