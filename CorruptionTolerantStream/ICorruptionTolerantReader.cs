@@ -2,5 +2,5 @@ namespace CorruptionTolerantStream;
 
 public interface ICorruptionTolerantReader
 {
-    Task<ReadResult> ReadNext(CancellationToken cancellationToken);
+    Task<ReadResult> ReadPayload(CancellationToken cancellationToken);
 }

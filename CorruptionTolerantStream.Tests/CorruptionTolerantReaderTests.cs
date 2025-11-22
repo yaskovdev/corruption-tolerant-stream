@@ -12,13 +12,13 @@ public class CorruptionTolerantReaderTests
         var buffer = await CreateBuffer(frames);
         using var stream = new MemoryStream(buffer);
         var instanceUnderTest = new CorruptionTolerantReader(stream);
-        (await instanceUnderTest.ReadNext(CancellationToken.None))
+        (await instanceUnderTest.ReadPayload(CancellationToken.None))
             .Payload
             .ShouldBe([1, 1, 1]);
-        (await instanceUnderTest.ReadNext(CancellationToken.None))
+        (await instanceUnderTest.ReadPayload(CancellationToken.None))
             .Payload
             .ShouldBe([2, 2]);
-        (await instanceUnderTest.ReadNext(CancellationToken.None))
+        (await instanceUnderTest.ReadPayload(CancellationToken.None))
             .ReadStatus
             .ShouldBe(ReadStatus.EndOfStream);
     }
@@ -30,10 +30,10 @@ public class CorruptionTolerantReaderTests
         var buffer = await CreateBuffer(frames);
         using var stream = new MemoryStream(new byte[] { 0 }.Concat(buffer).ToArray());
         var instanceUnderTest = new CorruptionTolerantReader(stream);
-        (await instanceUnderTest.ReadNext(CancellationToken.None))
+        (await instanceUnderTest.ReadPayload(CancellationToken.None))
             .Payload
             .ShouldBe([1, 1, 1]);
-        (await instanceUnderTest.ReadNext(CancellationToken.None))
+        (await instanceUnderTest.ReadPayload(CancellationToken.None))
             .ReadStatus
             .ShouldBe(ReadStatus.EndOfStream);
     }
@@ -49,10 +49,10 @@ public class CorruptionTolerantReaderTests
 
         using var stream = new MemoryStream(buffer);
         var instanceUnderTest = new CorruptionTolerantReader(stream);
-        (await instanceUnderTest.ReadNext(CancellationToken.None))
+        (await instanceUnderTest.ReadPayload(CancellationToken.None))
             .Payload
             .ShouldBe([2, 2]);
-        (await instanceUnderTest.ReadNext(CancellationToken.None))
+        (await instanceUnderTest.ReadPayload(CancellationToken.None))
             .ReadStatus
             .ShouldBe(ReadStatus.EndOfStream);
     }
@@ -71,13 +71,13 @@ public class CorruptionTolerantReaderTests
 
         using var stream = new MemoryStream(buffer);
         var instanceUnderTest = new CorruptionTolerantReader(stream);
-        (await instanceUnderTest.ReadNext(CancellationToken.None))
+        (await instanceUnderTest.ReadPayload(CancellationToken.None))
             .Payload
             .ShouldBe([1, 1, 1]);
-        (await instanceUnderTest.ReadNext(CancellationToken.None))
+        (await instanceUnderTest.ReadPayload(CancellationToken.None))
             .Payload
             .ShouldBe([3]);
-        (await instanceUnderTest.ReadNext(CancellationToken.None))
+        (await instanceUnderTest.ReadPayload(CancellationToken.None))
             .ReadStatus
             .ShouldBe(ReadStatus.EndOfStream);
     }
@@ -85,7 +85,7 @@ public class CorruptionTolerantReaderTests
     private static async Task<byte[]> CreateFrame(byte[] payload)
     {
         using var stream = new MemoryStream();
-        await stream.WriteFramed(payload);
+        await stream.WritePayload(payload);
         return stream.ToArray();
     }
 

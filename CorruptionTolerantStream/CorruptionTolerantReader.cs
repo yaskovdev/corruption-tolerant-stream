@@ -28,13 +28,13 @@ public class CorruptionTolerantReader : ICorruptionTolerantReader
         _stream = new PushbackStream(stream);
     }
 
-    public async Task<ReadResult> ReadNext(CancellationToken cancellationToken)
+    public async Task<ReadResult> ReadPayload(CancellationToken cancellationToken)
     {
-        var res = await ReadNextInternal(cancellationToken).Run();
+        var res = await ReadPayloadInternal(cancellationToken).Run();
         return res.ThrowIfFail();
     }
 
-    private Aff<ReadResult> ReadNextInternal(CancellationToken cancellationToken) =>
+    private Aff<ReadResult> ReadPayloadInternal(CancellationToken cancellationToken) =>
         Prelude.Aff(async () =>
         {
             while (true)
