@@ -10,7 +10,7 @@ public static class StreamExtensions
     public static async Task WritePayload(this Stream stream, byte[] payload, CancellationToken cancellationToken = default) =>
         await stream.WritePayload(Constants.Magic, payload, cancellationToken);
 
-    public static async Task WritePayload(this Stream stream, byte[] magic, byte[] payload, CancellationToken cancellationToken)
+    public static async Task WritePayload(this Stream stream, byte[] magic, byte[] payload, CancellationToken cancellationToken = default)
     {
         var size = BitConverter.GetBytes(payload.Length);
         var sizeHash = Crc32.HashToUInt32(size);

@@ -85,8 +85,6 @@ public class CorruptionTolerantReader : ICorruptionTolerantReader
             if (buffer is null) return false;
 
             var b = buffer.Memory.Span[0];
-
-
             if (b == _magic[matchedMagicBytes])
             {
                 matchedMagicBytes++;
