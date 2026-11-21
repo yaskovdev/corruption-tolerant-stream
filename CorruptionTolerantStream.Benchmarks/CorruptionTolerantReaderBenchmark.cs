@@ -18,26 +18,26 @@ public class CorruptionTolerantReaderBenchmark
         _framedBuffer = await CreateBuffer([..frames]);
         _readBuffer = new byte[_payloads.Select(it => it.Length).Max()];
     }
-
-    [Benchmark]
-    public async Task WriteNotFramed()
-    {
-        using var stream = new MemoryStream();
-        foreach (var payload in _payloads)
-        {
-            await stream.WriteAsync(payload);
-        }
-    }
-
-    [Benchmark]
-    public async Task WriteFramed()
-    {
-        using var stream = new MemoryStream();
-        foreach (var payload in _payloads)
-        {
-            await stream.WritePayload(payload);
-        }
-    }
+    //
+    // [Benchmark]
+    // public async Task WriteNotFramed()
+    // {
+    //     using var stream = new MemoryStream();
+    //     foreach (var payload in _payloads)
+    //     {
+    //         await stream.WriteAsync(payload);
+    //     }
+    // }
+    //
+    // [Benchmark]
+    // public async Task WriteFramed()
+    // {
+    //     using var stream = new MemoryStream();
+    //     foreach (var payload in _payloads)
+    //     {
+    //         await stream.WritePayload(payload);
+    //     }
+    // }
 
     [Benchmark]
     public async Task ReadNotFramed()
@@ -54,6 +54,21 @@ public class CorruptionTolerantReaderBenchmark
     {
         using var stream = new MemoryStream(_framedBuffer);
         var instanceUnderTest = new CorruptionTolerantReader(stream);
+        while (true)
+        {
+            var res = await instanceUnderTest.ReadPayload(CancellationToken.None);
+            if (res.ReadStatus == ReadStatus.EndOfStream)
+            {
+                break;
+            }
+        }
+    }
+    
+    [Benchmark]
+    public async Task ReadFramed2()
+    {
+        using var stream = new MemoryStream(_framedBuffer);
+        var instanceUnderTest = new CorruptionTolerantReader2(stream);
         while (true)
         {
             var res = await instanceUnderTest.ReadPayload(CancellationToken.None);
